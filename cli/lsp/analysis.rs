@@ -20,6 +20,7 @@ use deno_core::serde::Deserialize;
 use deno_core::serde_json;
 use deno_core::serde_json::json;
 use deno_core::ModuleSpecifier;
+use deno_lint::diagnostic::LintDiagnosticSeverity;
 use deno_lint::rules::LintRule;
 use deno_runtime::deno_node::NodeResolver;
 use deno_runtime::deno_node::NpmResolver;
@@ -77,6 +78,7 @@ pub enum Category {
     message: String,
     code: String,
     hint: Option<String>,
+    severity: Option<LintDiagnosticSeverity>
   },
 }
 
@@ -94,9 +96,16 @@ impl Reference {
         message,
         code,
         hint,
+        severity
       } => lsp::Diagnostic {
         range: self.range,
-        severity: Some(lsp::DiagnosticSeverity::WARNING),
+        severity: Some(match severity {
+          Some(LintDiagnosticSeverity::ERROR) => lsp::DiagnosticSeverity::ERROR,
+          Some(LintDiagnosticSeverity::WARNING) => lsp::DiagnosticSeverity::WARNING,
+          Some(LintDiagnosticSeverity::INFORMATION) => lsp::DiagnosticSeverity::INFORMATION,
+          Some(LintDiagnosticSeverity::HINT) => lsp::DiagnosticSeverity::HINT,
+          _ => lsp::DiagnosticSeverity::WARNING
+        }),
         code: Some(lsp::NumberOrString::String(code.to_string())),
         code_description: None,
         source: Some(DiagnosticSource::Lint.as_lsp_source().to_string()),
@@ -144,6 +153,7 @@ pub fn get_lint_references(
           message: d.message,
           code: d.code,
           hint: d.hint,
+          severity: d.severity
         },
         range: as_lsp_range(&d.range),
       })
@@ -993,6 +1003,7 @@ mod tests {
             message: "message1".to_string(),
             code: "code1".to_string(),
             hint: None,
+            severity: None
           },
           range,
         },
@@ -1011,6 +1022,7 @@ mod tests {
             message: "message2".to_string(),
             code: "code2".to_string(),
             hint: Some("hint2".to_string()),
+            severity: None
           },
           range,
         },
